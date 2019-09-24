@@ -46,7 +46,6 @@ let cssstyles = `
 const main = () => {
   let PC_els = document.querySelectorAll('[class*="spplus"]')
   ;
-  trace(PC_els)
   let articles = document.querySelectorAll('[class="clearfix"]')
   ;
   let all_articles = articles.length
