@@ -87,7 +87,6 @@ const main = () => {
         addClass(wrapper, 'be-gone')
         ;
       } else {
-        all_articles++;
         el.setAttribute('style', `
           opacity: ${opac};  
           pointer-events: none;
@@ -109,7 +108,9 @@ const main = () => {
     ;
     //
     let percent = 0
-    if(all_articles <== 0) {
+    ;
+    trace(all_articles)
+    if(all_articles <= 0) {
       percent = '???' + '%'
       ;
     } else {
