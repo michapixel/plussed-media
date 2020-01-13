@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name SPON-PaidContent-be-gone
+// @name KN-PaidContent-be-gone
+// @description Das Script erkennt Paid-Content-Blöcke des KN-Online-Auftrittes und 'deaktiviert' diese Blöcke / Links. Das Timeout scheint nicht wirklich notwendig zu sein, aber da auf der Seite Viele Dinge nur mit Javascript, also nach DOM-Ready funktionieren, und ggf auf noch herauszufilternde Events gewartet werden muss, hab ich das jetz erstmal so drin gelassen.
 // @namespace Violentmonkey Scripts
-// @match https://www.spiegel.de/
-// @description Das Script erkennt Paid-Content-Blöcke des SPON-Online-Auftrittes und 'deaktiviert' diese Blöcke / Links. 
+// @match https://www.kn-online.de/*
 // @grant unsafeWindow
 // ==/UserScript==
 // 
@@ -18,13 +18,58 @@ const addClass = (el, className) => {
   else if (!hasClass(el, className)) el.className += ' ' + className;
 }
 ;
+const removeClass = (el, className) => {
+  el.classList.remove(className);
+}
+;
+const hasClassLike = (list, str) => {
+  if([...list].join(' ').indexOf('freeuntilbadge_open') > -1 ){
+      return true;
+  } else {
+      return false;
+  }
+}
+;
+const extractTime = (str) => {
+  return str.match(/(\d{1,2}([:])\d{1,2})/gm)[0];
+}
+;
+const addTimer = (el) => {
+  let minutes = el.getAttribute('data-minutes');
+  if(minutes === 0) {
+    addClass(el, 'be-gone');
+    removeClass(el, 'be-gone-soon');
+  } else {
+    let intV = setInterval( (el) => {
+      let m = el.getAttribute('data-minutes')-1;
+      if (m < 1) {
+        clearInterval(intV);
+        addClass(el, 'be-gone');
+        el.setAttribute('style', `
+          opacity: ${opac};  
+          pointer-events: none; 
+        `)
+        ;
+        removeClass(el, 'be-gone-soon');
+        removeClass(el, 'be-gone-soon-soon');
+        trace(el)
+      }
+      if (m < 5 && m > 0) {
+        addClass(el, 'be-gone-soon-soon');
+      }
+      el.setAttribute('data-minutes', m)
+      
+    }, 1000*60, el);
+  }
+}
+;
 const opac = 0.2
 ;
 let cssstyles = `
-#wrapper-shadow {
+#seite {
   position: relative;
 }
-#wrapper-shadow:before {
+#seite:before {
   content: '🙈 Articles plussed: {{blocked}} ({{articles}})';
 
   position: fixed;
@@ -42,42 +87,158 @@ let cssstyles = `
   
   box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.5);
 }
-.be-gone .be-gone {
-  opacity: 10 !important;
+.pdb-bigteaser-item.be-gone-soon {
+  display: flex;
+  flex-direction: column;
+}
+.be-gone-soon {
+  position: relative;
+  display: block;
+  overflow: auto;
+}
+.pdb-teaser3-teaser.be-gone-soon{
+  overflow: initial;
+}
+.be-gone-soon > [class*="teaser-release"] {
+  
+}
+
+.be-gone-soon:after {
+  position: absolute;
+  z-index: 1;
+  left: 15px;
+  top: 15px;
+  content: attr(data-minutes);
+  font-family: sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  background: #FFF;
+  box-shadow: 0 3px 5px 0 rgba(0,0,0,0.5);
+  width: 3em;
+  height: 3em;
+  line-height: 3em;
+  border-radius: 50%;
+  text-align:center;
+  clear: both;
+}
+
+.be-gone-soon:before {
+  position: absolute;
+  content: '';
+  z-index: 2;
+  left: calc(14px + 1.5em);
+  top: 15px;
+  font-family: sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  height: 1.5em;
+  transform-origin: bottom center;
+  animation:spin 60s linear infinite;
+}
+.be-gone-soon-soon:after {
+  background: red;
+  color: #FFF;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+    background: red;
+  }
+  2% {
+    transform: rotate(0deg);
+    background: rgba(0, 0, 0, 0.3);
+  }
+  100% { 
+    transform: rotate(359deg);
+  }
+}
+/* external links --- */
+.external {
+  position: relative;
+}
+.external:before {
+  content: '';
+  position:absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 15px 15px 0 0;
+  border-color: rgb(255, 0, 0) transparent transparent transparent;
+  opacity: 0.7;
+  transition: border-width .5s ease-out;
+}
+.external:hover:before {
+  opacity: 1;
+  border-width: 25px 25px 0 0;
+}
+/* fixes ----*/
+.pdb-toptopics-teaser-release,
+.pdb-teaser3-teaser-release {
+  bottom: -25px;
 }
 `;
 const main = () => {
-  let PC_els = document.querySelectorAll('[data-contains-flags="paid"]')
+  let PC_els = document.querySelectorAll('[class*="paidcontent"]')
   ;
-  trace(PC_els)
-  let articles = document.querySelectorAll('article')
+  let articles = document.querySelectorAll('[data-component="linkblock"]')
   ;
   let all_articles = articles.length
+  ;
+  let PDBshare_els = document.querySelectorAll('[class*="pdb-share-"]')
+  ;
+  PDBshare_els.forEach( (el, n) => {
+    el.parentNode.removeChild(el);
+  })
   ;
   let blocked_articles = PC_els.length;
   if( blocked_articles > 0 ) {
     //
     PC_els.forEach( (el, n) => {
-      // each paid-content-link has most likely a wrapper / linkblock, so:
-      let wrapper = el.closest('article')
-      ;
-      if(wrapper !== undefined && wrapper !== null) {
-        wrapper.setAttribute('style', `
-          opacity: ${opac};  
-          pointer-events: none; 
-        `)
+      let freeuntil = hasClassLike(el.classList, 'freeuntilbadge_open');
+      //trace(el, freeuntil)
+      if(!freeuntil) {
+        // each paid-content-link has most likely a wrapper / linkblock, so:
+        let wrapper = el.closest('[data-component="linkblock"]')
         ;
-        addClass(wrapper, 'be-gone')
-        ;
+        if( !hasClass(wrapper, 'be-gone-soon') ) {
+          if(wrapper !== undefined) {
+            wrapper.setAttribute('style', `
+              opacity: ${opac};  
+              pointer-events: none; 
+            `)
+            ;
+            addClass(wrapper, 'be-gone')
+            ;
+          } else {
+            all_articles++;
+            el.setAttribute('style', `
+              opacity: ${opac};  
+              pointer-events: none; 
+            `)
+            ;
+            addClass(el, 'be-gone')
+            ;
+          }
+        }
       } else {
-        all_articles++;
-        el.setAttribute('style', `
-          opacity: ${opac};  
-          pointer-events: none; 
-        `)
+        let wrapper = el.closest('[data-component="linkblock"]')
         ;
-        addClass(el, 'be-gone')
-        ;
+        let time = extractTime(el.textContent).split(':');
+        let now = new Date();
+        let day = now.getDate();
+        let month = now.getMonth();
+        let year = now.getFullYear();
+        let then = new Date(year, month, day, time[0], time[1]);
+        let diff = Math.abs(then - now);
+        let minutes = Math.floor((diff/1000)/60);
+        wrapper.setAttribute('data-minutes', minutes);
+        addClass(wrapper, 'be-gone-soon')
+        addTimer(wrapper);
       }
     })
     ;
@@ -93,9 +254,20 @@ const main = () => {
     style.appendChild( document.createTextNode( cssstyles ) );
     document.body.appendChild(style);
     //
-    trace('[FF] SPON-PaidContent-be-gone')
+    trace('KN-PaidContent-be-gone')
     ;
   }
+  // mark external links ... 
+  let external = [...document.querySelectorAll('#seite a[href]:not([href*="kn-online"]):not([href^="/"])')];
+  //
+  external.forEach( (el, n) => {
+    if(el !== null ) {
+      let block = el.closest('[data-component="linkblock"]');
+      if(block === null)
+        block = el;
+      addClass(block, 'external');
+    }
+  });
 }
 ;
 setTimeout(main, 10)
