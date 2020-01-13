@@ -21,32 +21,39 @@ const addClass = (el, className) => {
 const opac = 0.2
 ;
 let cssstyles = `
-#wrapper-shadow {
+header {
   position: relative;
 }
-#wrapper-shadow:before {
+header:before {
   content: '🙈 Articles plussed: {{blocked}} ({{articles}})';
-
+  display:inline-block;
+  white-space: pre-line;
   position: fixed;
-  z-index: 10000000;
+  z-index: 1000000000;
   right: 0;
   top: 70px;
+  width: 14em;
+  height: auto;
   
   background: #FFF;
   color: red;
   padding: 0.2em 0.5em;
-  text-align: center;
+  text-align: left;
   font-family: sans-serif;
   font-size: 11px;
   font-weight: 600;
   
-  box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+}
+.be-gone .be-gone {
+  opacity: 1 !important;
 }
 `;
 const main = () => {
-  let PC_els = document.querySelectorAll('[class*="spplus"]')
+  let PC_els = document.querySelectorAll('[data-contains-flags="paid"]')
   ;
-  let articles = document.querySelectorAll('[class="clearfix"]')
+  //trace(PC_els)
+  let articles = document.querySelectorAll('article')
   ;
   let all_articles = articles.length
   ;
@@ -55,7 +62,7 @@ const main = () => {
     //
     PC_els.forEach( (el, n) => {
       // each paid-content-link has most likely a wrapper / linkblock, so:
-      let wrapper = el.closest('[class="clearfix"]')
+      let wrapper = el.closest('article')
       ;
       if(wrapper !== undefined && wrapper !== null) {
         wrapper.setAttribute('style', `
